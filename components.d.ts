@@ -30,6 +30,7 @@ declare module 'vue' {
     ChangelogCard: typeof import('./src/components/ChangelogCard.vue')['default']
     ClubBattleRecords: typeof import('./src/components/Club/ClubBattleRecords.vue')['default']
     ClubCarKing: typeof import('./src/components/ClubCarKing.vue')['default']
+    ClubFightPvp: typeof import('./src/components/cards/ClubFightPvp.vue')['default']
     ClubHistoryRecords: typeof import('./src/components/Club/ClubHistoryRecords.vue')['default']
     ClubInfo: typeof import('./src/components/Club/ClubInfo.vue')['default']
     ClubMonthBattleRecords: typeof import('./src/components/Club/ClubMonthBattleRecords.vue')['default']

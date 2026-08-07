@@ -301,6 +301,8 @@
     </div>
     <!-- 切磋（提取组件） -->
     <FightPvp v-if="activeSection === 'fightPvp'" />
+    <!-- 俱乐部切磋（与切磋同 tab） -->
+    <ClubFightPvp v-if="activeSection === 'fightPvp'" />
   </div>
 </template>
 
@@ -330,6 +332,7 @@ import TopClubList from "./cards/TopClubListPageCard.vue";
 import GreatRouteRankList from "./Club/GreatRouteRankListPageCard.vue";
 import GoldClubList from "./cards/GoldRankListPageCard.vue";
 import FightPvp from "./cards/FightPvp.vue";
+import ClubFightPvp from "./cards/ClubFightPvp.vue";
 import FightHelperCard from "./cards/FightHelperCard.vue";
 import DreamHelperCard from "./cards/DreamHelperCard.vue";
 import HeroUpgradeCard from "./cards/HeroUpgradeCard.vue";
