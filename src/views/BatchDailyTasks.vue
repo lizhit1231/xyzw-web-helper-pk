@@ -666,6 +666,38 @@
                 </n-button>
               </n-space>
             </n-tab-pane>
+            <n-tab-pane name="pvp" tab="切磋">
+              <n-space align="center">
+                <span style="font-size: 13px; color: #495057">对手ID：</span>
+                <n-input-number
+                  v-model:value="pvpTargetId"
+                  placeholder="输入对手ID"
+                  :show-button="false"
+                  style="width: 160px"
+                  :disabled="isRunning"
+                />
+                <span style="font-size: 13px; color: #495057; margin-left: 8px">切磋次数：</span>
+                <n-input-number
+                  v-model:value="pvpFightNum"
+                  :min="1"
+                  :max="50"
+                  :show-button="false"
+                  style="width: 80px"
+                  :disabled="isRunning"
+                />
+                <n-button
+                  size="small"
+                  type="primary"
+                  @click="startBatchPvp"
+                  :disabled="isRunning || selectedTokens.length === 0 || !pvpTargetId"
+                >
+                  开始切磋
+                </n-button>
+                <span style="font-size: 12px; color: #999">
+                  对选中账号逐个切磋，相邻两次间隔500-800ms
+                </span>
+              </n-space>
+            </n-tab-pane>
           </n-tabs>
         </n-card>
       </div>
@@ -2533,6 +2565,29 @@
       </div>
     </n-modal>
 
+    <!-- PVP Result Modal -->
+    <n-modal
+      v-model:show="showPvpResultModal"
+      preset="card"
+      title="批量切磋结果"
+      style="width: 90%; max-width: 600px"
+    >
+      <div style="margin-bottom: 12px; display: flex; gap: 16px; font-size: 14px">
+        <span>对手ID: {{ pvpTargetId }}</span>
+        <span>切磋次数: {{ pvpFightNum }}</span>
+        <span>账号数: {{ pvpResultList.length }}</span>
+      </div>
+      <n-data-table
+        :columns="pvpResultColumns"
+        :data="pvpResultList"
+        :bordered="false"
+        size="small"
+      />
+      <div class="modal-actions" style="margin-top: 20px; text-align: right">
+        <n-button @click="showPvpResultModal = false">关闭</n-button>
+      </div>
+    </n-modal>
+
     <!-- Token Group Management Modal -->
     <n-modal
       v-model:show="showGroupManageModal"
@@ -2899,6 +2954,7 @@ import {
   createTasksStore,
   createTasksLegacy,
   createTasksFootball,
+  createTasksPvp,
 } from "@/utils/batch";
 
 import { merchantConfig, goldItemsConfig } from "@/utils/dreamConstants";
@@ -5788,6 +5844,53 @@ const { batchLegacyClaim, batchLegacyGiftSendEnhanced } = tasksLegacy;
 
 const tasksFootball = createTasksFootball(createTaskDeps());
 const { batchFootballBet } = tasksFootball;
+
+const tasksPvp = createTasksPvp(createTaskDeps());
+const { batchPvpFight } = tasksPvp;
+
+// 批量切磋相关
+const pvpTargetId = ref(null);
+const pvpFightNum = ref(10);
+const pvpResultList = ref([]);
+const showPvpResultModal = ref(false);
+
+const pvpResultColumns = [
+  { title: "账号", key: "name", width: 120 },
+  { title: "胜", key: "winCount", width: 60, align: "center" },
+  { title: "平", key: "drawCount", width: 60, align: "center" },
+  { title: "负", key: "lossCount", width: 60, align: "center" },
+  {
+    title: "胜率",
+    key: "winRate",
+    width: 80,
+    align: "center",
+    render: (row) => {
+      const total = row.totalFights || 0;
+      const rate = total === 0 ? "0.0" : ((row.winCount / total) * 100).toFixed(1);
+      return `${rate}%`;
+    },
+  },
+];
+
+const startBatchPvp = async () => {
+  if (!pvpTargetId.value || pvpTargetId.value <= 0) {
+    message.warning("请输入有效的对手ID");
+    return;
+  }
+  if (!pvpFightNum.value || pvpFightNum.value <= 0) {
+    message.warning("请输入切磋次数");
+    return;
+  }
+  if (selectedTokens.value.length === 0) {
+    message.warning("请先选择账号");
+    return;
+  }
+
+  pvpResultList.value = [];
+  const results = await batchPvpFight(pvpTargetId.value, pvpFightNum.value);
+  pvpResultList.value = results;
+  showPvpResultModal.value = true;
+};
 
 // 盐杯竞猜 pick 选择
 const footballPick = ref(3);
