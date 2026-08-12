@@ -680,7 +680,7 @@
                 <n-input-number
                   v-model:value="pvpFightNum"
                   :min="1"
-                  :max="50"
+                  :max="999"
                   :show-button="false"
                   style="width: 80px"
                   :disabled="isRunning"
