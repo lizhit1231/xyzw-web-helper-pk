@@ -345,6 +345,7 @@ import { ref, computed, h } from "vue";
 import { useMessage, NDataTable, NAvatar, NTag, NButton, NIcon, NProgress } from "naive-ui";
 import { Trophy, Refresh, Copy } from "@vicons/ionicons5";
 import { useTokenStore } from "@/stores/tokenStore";
+import { getLineupType, LINEUP_RULES } from "@/utils/HeroList";
 
 const message = useMessage();
 const tokenStore = useTokenStore();
@@ -647,12 +648,20 @@ const fetchMembersByIds = async (tokenId, roleIds) => {
           const ri = res.roleInfo;
           // 优先用英雄装备计算红淬数，roleInfo.red 是红鼓数不是红淬数
           const redQuench = calcRedQuenchFromHeroes(ri.heroes);
+          // 判断阵容类型
+          const heroesArr = ri.heroes
+            ? (Array.isArray(ri.heroes)
+                ? ri.heroes
+                : Object.values(ri.heroes))
+            : [];
+          const lineupType = getLineupType(heroesArr);
           return {
             roleId: Number(ri.roleId || roleId),
             name: ri.name || "未知",
             headImg: ri.headImg || "",
             power: ri.power || 0,
             redQuench,
+            lineupType,
           };
         }
       } catch (e) {
@@ -734,6 +743,7 @@ const selectClub = async (club, presetDetail = null) => {
         headImg: m.headImg || m.custom?.headImg || "",
         power: m.power || m.custom?.s_power || 0,
         redQuench: m.custom?.red_quench_cnt || 0,
+        lineupType: "-",
       });
     }
     // 按战力降序
@@ -857,6 +867,32 @@ const memberColumns = computed(() => [
         `${row.redQuench}红`,
       ),
   },
+  {
+    title: "阵容",
+    key: "lineupType",
+    width: 90,
+    align: "center",
+    render: (row) => {
+      if (!row.lineupType || row.lineupType === "-") {
+        return h("span", { style: { color: "#bfbfbf", fontSize: "12px" } }, "-");
+      }
+      const rule = LINEUP_RULES.find((r) => r.name === row.lineupType);
+      const colorProps = rule?.colorProps || { color: "#8c8c8c", textColor: "#fff" };
+      return h(
+        "span",
+        {
+          style: {
+            padding: "2px 8px",
+            borderRadius: "4px",
+            fontSize: "12px",
+            backgroundColor: colorProps.color,
+            color: colorProps.textColor,
+          },
+        },
+        row.lineupType,
+      );
+    },
+  },
 ]);
 
 // 结果表格列
@@ -916,6 +952,44 @@ const resultColumns = computed(() => [
     width: 90,
     align: "center",
     render: (row) => formatPower(row.power),
+  },
+  {
+    title: "红淬",
+    key: "redQuench",
+    width: 80,
+    align: "center",
+    render: (row) =>
+      h(
+        "span",
+        { style: { color: "#ff4d4f" } },
+        `${row.redQuench}红`,
+      ),
+  },
+  {
+    title: "阵容",
+    key: "lineupType",
+    width: 90,
+    align: "center",
+    render: (row) => {
+      if (!row.lineupType || row.lineupType === "-") {
+        return h("span", { style: { color: "#bfbfbf", fontSize: "12px" } }, "-");
+      }
+      const rule = LINEUP_RULES.find((r) => r.name === row.lineupType);
+      const colorProps = rule?.colorProps || { color: "#8c8c8c", textColor: "#fff" };
+      return h(
+        "span",
+        {
+          style: {
+            padding: "2px 8px",
+            borderRadius: "4px",
+            fontSize: "12px",
+            backgroundColor: colorProps.color,
+            color: colorProps.textColor,
+          },
+        },
+        row.lineupType,
+      );
+    },
   },
   {
     title: "总场次",
@@ -1133,6 +1207,8 @@ const fightOneMember = async (tokenId, member) => {
     name: member.name,
     headImg: member.headImg,
     power: member.power,
+    redQuench: member.redQuench || 0,
+    lineupType: member.lineupType || "-",
     winCount,
     drawCount,
     lossCount,
@@ -1160,13 +1236,13 @@ const handleExport = () => {
     `完成人数: ${fightResultList.value.length}`,
     `总胜: ${overallWin.value}  总平: ${overallDraw.value}  总负: ${overallLoss.value}  总胜率: ${overallWinRate.value}%`,
     "─".repeat(60),
-    "排名\t成员\tID\t战力\t胜\t平\t负\t胜率%\t我方满编率%\t敌方满编率%",
+    "排名\t成员\tID\t战力\t红淬\t阵容\t胜\t平\t负\t胜率%\t我方满编率%\t敌方满编率%",
   ];
   sortedResultList.value.forEach((r, idx) => {
     const total = r.winCount + r.drawCount + r.lossCount;
     const rate = total === 0 ? "0.00" : ((r.winCount / total) * 100).toFixed(2);
     lines.push(
-      `${idx + 1}\t${r.name}\t${r.roleId}\t${formatPower(r.power)}\t${r.winCount}\t${r.drawCount}\t${r.lossCount}\t${rate}\t${total === 0 ? "0.0" : ((r.ourFullTeamCount / total) * 100).toFixed(1)}\t${total === 0 ? "0.0" : ((r.enemyFullTeamCount / total) * 100).toFixed(1)}`,
+      `${idx + 1}\t${r.name}\t${r.roleId}\t${formatPower(r.power)}\t${r.redQuench}红\t${r.lineupType}\t${r.winCount}\t${r.drawCount}\t${r.lossCount}\t${rate}\t${total === 0 ? "0.0" : ((r.ourFullTeamCount / total) * 100).toFixed(1)}\t${total === 0 ? "0.0" : ((r.enemyFullTeamCount / total) * 100).toFixed(1)}`,
     );
   });
   const text = lines.join("\n");
