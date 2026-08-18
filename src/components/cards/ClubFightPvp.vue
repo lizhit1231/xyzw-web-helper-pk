@@ -587,6 +587,38 @@ const searchClubs = async () => {
   }
 };
 
+// 获取装备信息红数和孔数
+const getEquipment = (equipment) => {
+  let redCount = 0;
+  let holeCount = 0;
+  if (!equipment) return { redCount, holeCount };
+  Object.values(equipment).forEach((equ) => {
+    if (!equ?.quenches) return;
+    Object.values(equ.quenches).forEach((item) => {
+      holeCount++;
+      if (item.colorId == 6) {
+        redCount++;
+      }
+    });
+  });
+  return { redCount, holeCount };
+};
+
+// 从英雄装备中计算总红淬数
+const calcRedQuenchFromHeroes = (heroes) => {
+  if (!heroes) return 0;
+  let total = 0;
+  const arr = Array.isArray(heroes)
+    ? heroes
+    : Object.values(heroes);
+  arr.forEach((hero) => {
+    if (!hero?.equipment) return;
+    const { redCount } = getEquipment(hero.equipment);
+    total += redCount;
+  });
+  return total;
+};
+
 // 批量查询成员信息（通过 rank_getroleinfo）
 const fetchMembersByIds = async (tokenId, roleIds) => {
   const selfRoleId = getSelfRoleId();
@@ -613,12 +645,14 @@ const fetchMembersByIds = async (tokenId, roleIds) => {
         );
         if (res?.roleInfo) {
           const ri = res.roleInfo;
+          // 优先用英雄装备计算红淬数，roleInfo.red 是红鼓数不是红淬数
+          const redQuench = calcRedQuenchFromHeroes(ri.heroes);
           return {
             roleId: Number(ri.roleId || roleId),
             name: ri.name || "未知",
             headImg: ri.headImg || "",
             power: ri.power || 0,
-            redQuench: ri.red || 0,
+            redQuench,
           };
         }
       } catch (e) {
