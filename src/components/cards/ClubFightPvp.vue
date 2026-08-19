@@ -114,6 +114,20 @@
               </template>
               导出数据
             </n-button>
+
+            <n-button
+              type="default"
+              :disabled="!fightResultList.length"
+              @click="handleExportImage"
+              size="medium"
+            >
+              <template #icon>
+                <n-icon>
+                  <Copy />
+                </n-icon>
+              </template>
+              导出图片
+            </n-button>
           </div>
         </div>
       </div>
@@ -300,9 +314,9 @@
             size="small"
             striped
             :row-key="(row) => row.roleId"
-            flex-height
+            :flex-height="!exporting"
             :scroll-x="900"
-            style="height: 500px"
+            :style="exporting ? {} : { height: '500px' }"
           />
         </div>
 
@@ -341,11 +355,12 @@
 </template>
 
 <script setup>
-import { ref, computed, h } from "vue";
+import { ref, computed, h, nextTick } from "vue";
 import { useMessage, NDataTable, NAvatar, NTag, NButton, NIcon, NProgress } from "naive-ui";
 import { Trophy, Refresh, Copy } from "@vicons/ionicons5";
 import { useTokenStore } from "@/stores/tokenStore";
 import { getLineupType, LINEUP_RULES } from "@/utils/HeroList";
+import html2canvas from "html2canvas";
 
 const message = useMessage();
 const tokenStore = useTokenStore();
@@ -383,6 +398,8 @@ const options = [
 ];
 
 const exportDom = ref(null);
+// 是否正在导出图片（用于解除表格高度限制以截全图）
+const exporting = ref(false);
 
 // 处理切磋次数变化
 const handleFightNumChange = (value) => {
@@ -1262,6 +1279,45 @@ const handleExport = () => {
     message.success("导出成功");
   } catch (error) {
     message.error(`导出失败: ${error.message}`);
+  }
+};
+
+// 导出图片
+const handleExportImage = async () => {
+  if (!fightResultList.value.length) {
+    message.warning("没有可导出的数据");
+    return;
+  }
+  if (!exportDom.value) {
+    message.error("无法获取结果区域");
+    return;
+  }
+  const clubNameStr = selectedClub.value?.name || "俱乐部";
+  // 解除表格高度限制，让所有行渲染出来以截取长图
+  exporting.value = true;
+  try {
+    // 等待 DOM 更新完成
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const canvas = await html2canvas(exportDom.value, {
+      backgroundColor: "#f5f7fa",
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      windowWidth: exportDom.value.scrollWidth,
+      windowHeight: exportDom.value.scrollHeight,
+    });
+    const link = document.createElement("a");
+    link.download = `俱乐部切磋结果_${clubNameStr}.png`;
+    link.href = canvas.toDataURL("image/png");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    message.success("图片导出成功");
+  } catch (error) {
+    message.error(`图片导出失败: ${error.message}`);
+  } finally {
+    exporting.value = false;
   }
 };
 </script>
