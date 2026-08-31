@@ -439,8 +439,7 @@
                   "
                 >
                   一键购买梦境商品
-                </n-button>
-              </n-space>
+                </n-button>              
                 <n-popselect
                   :value="footballPick"
                   :options="footballPickOptions"
@@ -454,6 +453,14 @@
                     一键竞猜({{ footballPickLabel }})
                   </n-button>
                 </n-popselect>
+                <n-button
+                  size="small"
+                  :disabled="isRunning || selectedTokens.length === 0"
+                  @click="batchApexGuess(apexScheduleId)"
+                >
+                  逐鹿盐山竞猜
+                </n-button>
+              </n-space>
             </n-tab-pane>
             <n-tab-pane name="baoku" tab="宝库">
               <n-space>
@@ -2955,6 +2962,7 @@ import {
   createTasksLegacy,
   createTasksFootball,
   createTasksPvp,
+  createTasksApex,
 } from "@/utils/batch";
 
 import { merchantConfig, goldItemsConfig } from "@/utils/dreamConstants";
@@ -5891,6 +5899,12 @@ const startBatchPvp = async () => {
   pvpResultList.value = results;
   showPvpResultModal.value = true;
 };
+
+const tasksApex = createTasksApex(createTaskDeps());
+const { batchApexGuess } = tasksApex;
+
+// 逐鹿盐山竞猜配置
+const apexScheduleId = ref(46);
 
 // 盐杯竞猜 pick 选择
 const footballPick = ref(3);
