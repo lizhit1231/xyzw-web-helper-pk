@@ -309,7 +309,7 @@
           class="info-card result-table-card"
         >
           <div class="card-title">
-            <h4>切磋结果（按胜率降序）</h4>
+            <h4>切磋结果（按胜率、我方满编率降序）</h4>
           </div>
           <n-data-table
             :columns="resultColumns"
@@ -363,7 +363,8 @@ import { ref, computed, h, nextTick } from "vue";
 import { useMessage, NDataTable, NAvatar, NTag, NButton, NIcon, NProgress } from "naive-ui";
 import { Trophy, Refresh, Copy } from "@vicons/ionicons5";
 import { useTokenStore } from "@/stores/tokenStore";
-import { getLineupType, LINEUP_RULES } from "@/utils/HeroList";
+import { getLineupType, LINEUP_RULES, legacycolor, formatWeapon } from "@/utils/HeroList";
+import { getShowPet } from "@/utils/PetList";
 import html2canvas from "html2canvas";
 
 const message = useMessage();
@@ -682,6 +683,9 @@ const fetchMembersByIds = async (tokenId, roleIds) => {
             headImg: ri.headImg || "",
             power: ri.power || 0,
             redQuench,
+            legacy: ri.legacy?.color || 0,
+            toyName: formatWeapon(ri.lordWeaponId) || "",
+            pet: getShowPet(res),
             lineupType,
           };
         }
@@ -764,6 +768,9 @@ const selectClub = async (club, presetDetail = null) => {
         headImg: m.headImg || m.custom?.headImg || "",
         power: m.power || m.custom?.s_power || 0,
         redQuench: m.custom?.red_quench_cnt || 0,
+        legacy: 0,
+        toyName: "",
+        pet: null,
         lineupType: "-",
       });
     }
@@ -805,21 +812,80 @@ const overallWinRate = computed(() => {
   return ((overallWin.value / total) * 100).toFixed(2);
 });
 
-// 结果排序（按胜率降序，胜率相同按胜次降序）
+// 结果排序（按胜率降序，胜率相同按我方满编率降序）
 const sortedResultList = computed(() => {
+  const validTotal = (r) => r.winCount + r.drawCount + r.lossCount;
+  const winRate = (r) =>
+    validTotal(r) === 0 ? 0 : r.winCount / validTotal(r);
+  const ourFullTeamRate = (r) =>
+    validTotal(r) === 0 ? 0 : (r.ourFullTeamCount || 0) / validTotal(r);
+
   return [...fightResultList.value].sort((a, b) => {
-    const rateA =
-      a.winCount + a.drawCount + a.lossCount === 0
-        ? 0
-        : a.winCount / (a.winCount + a.drawCount + a.lossCount);
-    const rateB =
-      b.winCount + b.drawCount + b.lossCount === 0
-        ? 0
-        : b.winCount / (b.winCount + b.drawCount + b.lossCount);
-    if (rateB !== rateA) return rateB - rateA;
-    return b.winCount - a.winCount;
+    const rateDiff = winRate(b) - winRate(a);
+    if (rateDiff !== 0) return rateDiff;
+    return ourFullTeamRate(b) - ourFullTeamRate(a);
   });
 });
+
+// 珍卡标签
+const renderLegacy = (row) => {
+  const cfg = legacycolor[row.legacy];
+  if (!row.legacy || !cfg) {
+    return h("span", { class: "legacy-none" }, "—");
+  }
+  return h(
+    NTag,
+    {
+      size: "small",
+      bordered: false,
+      color: { color: cfg.value, textColor: "#fff" },
+    },
+    { default: () => cfg.name },
+  );
+};
+
+// 玩具名称
+const renderToy = (row) => {
+  if (!row.toyName) {
+    return h("span", { class: "toy-none" }, "—");
+  }
+  return h("span", { class: "toy-name" }, row.toyName);
+};
+
+// 宠物：图标 + 名称/等级
+const renderPet = (row) => {
+  const pet = row.pet;
+  if (!pet) return h("span", { class: "pet-none" }, "—");
+
+  const children = [];
+  if (pet.icon) {
+    children.push(
+      h("img", {
+        class: "pet-icon",
+        src: pet.icon,
+        alt: pet.name,
+        loading: "lazy",
+        onError: (e) => {
+          e.target.style.display = "none";
+        },
+      }),
+    );
+  }
+  children.push(
+    h("div", { class: "pet-text" }, [
+      h("span", { class: "pet-name", style: { color: pet.color } }, pet.name),
+      pet.level ? h("span", { class: "pet-level" }, `Lv.${pet.level}`) : null,
+    ]),
+  );
+
+  return h("div", { class: "pet-cell" }, children);
+};
+
+const memberInfoColumns = [
+  { title: "珍卡", key: "legacy", width: 92, align: "center", render: renderLegacy },
+  { title: "玩具", key: "toyName", width: 120, align: "center", render: renderToy },
+  { title: "宠物", key: "pet", width: 110, align: "center", render: renderPet },
+];
 
 // 成员表格列
 const memberColumns = computed(() => [
@@ -891,6 +957,7 @@ const memberColumns = computed(() => [
         `${row.redQuench}红`,
       ),
   },
+  ...memberInfoColumns,
   {
     title: "阵容",
     key: "lineupType",
@@ -989,6 +1056,7 @@ const resultColumns = computed(() => [
         `${row.redQuench}红`,
       ),
   },
+  ...memberInfoColumns,
   {
     title: "阵容",
     key: "lineupType",
@@ -1275,6 +1343,9 @@ const fightOneMember = async (tokenId, member) => {
     headImg: member.headImg,
     power: member.power,
     redQuench: member.redQuench || 0,
+    legacy: member.legacy || 0,
+    toyName: member.toyName || "",
+    pet: member.pet || null,
     lineupType: member.lineupType || "-",
     winCount,
     drawCount,
@@ -1304,13 +1375,13 @@ const handleExport = () => {
     `完成人数: ${fightResultList.value.length}`,
     `总胜: ${overallWin.value}  总平: ${overallDraw.value}  总负: ${overallLoss.value}  网络失败: ${overallNetworkFail.value}  总胜率: ${overallWinRate.value}%`,
     "─".repeat(60),
-    "排名\t成员\tID\t战力\t红淬\t阵容\t胜\t平\t负\t网络失败\t胜率%\t我方满编率%\t敌方满编率%",
+    "排名\t成员\tID\t战力\t红淬\t珍卡\t玩具\t宠物\t阵容\t胜\t平\t负\t网络失败\t胜率%\t我方满编率%\t敌方满编率%",
   ];
   sortedResultList.value.forEach((r, idx) => {
     const total = r.winCount + r.drawCount + r.lossCount;
     const rate = total === 0 ? "0.00" : ((r.winCount / total) * 100).toFixed(2);
     lines.push(
-      `${idx + 1}\t${r.name}\t${r.roleId}\t${formatPower(r.power)}\t${r.redQuench}红\t${r.lineupType}\t${r.winCount}\t${r.drawCount}\t${r.lossCount}\t${r.networkFailCount || 0}\t${rate}\t${total === 0 ? "0.0" : ((r.ourFullTeamCount / total) * 100).toFixed(1)}\t${total === 0 ? "0.0" : ((r.enemyFullTeamCount / total) * 100).toFixed(1)}`,
+      `${idx + 1}\t${r.name}\t${r.roleId}\t${formatPower(r.power)}\t${r.redQuench}红\t${legacycolor[r.legacy]?.name || "-"}\t${r.toyName || "-"}\t${r.pet ? `${r.pet.name}${r.pet.level ? ` Lv.${r.pet.level}` : ""}` : "-"}\t${r.lineupType}\t${r.winCount}\t${r.drawCount}\t${r.lossCount}\t${r.networkFailCount || 0}\t${rate}\t${total === 0 ? "0.0" : ((r.ourFullTeamCount / total) * 100).toFixed(1)}\t${total === 0 ? "0.0" : ((r.enemyFullTeamCount / total) * 100).toFixed(1)}`,
     );
   });
   const text = lines.join("\n");
@@ -1709,6 +1780,54 @@ const handleExportImage = async () => {
 
 .result-table-card {
   padding: 12px;
+}
+
+/* 珍卡 / 玩具 / 宠物 */
+:deep(.legacy-none),
+:deep(.toy-none),
+:deep(.pet-none) {
+  color: #d9d9d9;
+  font-size: 12px;
+}
+
+:deep(.toy-name) {
+  color: #c084fc;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+:deep(.pet-cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+:deep(.pet-icon) {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  object-fit: contain;
+  background-color: rgba(64, 169, 255, 0.07);
+  flex-shrink: 0;
+}
+
+:deep(.pet-text) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+:deep(.pet-name) {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+:deep(.pet-level) {
+  font-size: 11px;
+  color: #8c8c8c;
 }
 
 /* 响应式 */
