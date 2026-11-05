@@ -291,6 +291,10 @@
               <span class="summary-label">总负：</span>
               <span class="summary-value">{{ overallLoss }}</span>
             </div>
+            <div class="summary-item fail-count">
+              <span class="summary-label">网络失败：</span>
+              <span class="summary-value">{{ overallNetworkFail }}</span>
+            </div>
             <div class="summary-item win-rate">
               <span class="summary-label">总胜率：</span>
               <span class="summary-value">{{ overallWinRate }}%</span>
@@ -792,6 +796,9 @@ const overallDraw = computed(() =>
 const overallLoss = computed(() =>
   fightResultList.value.reduce((s, r) => s + r.lossCount, 0),
 );
+const overallNetworkFail = computed(() =>
+  fightResultList.value.reduce((s, r) => s + (r.networkFailCount || 0), 0),
+);
 const overallWinRate = computed(() => {
   const total = overallWin.value + overallDraw.value + overallLoss.value;
   if (total === 0) return "0.00";
@@ -1052,6 +1059,18 @@ const resultColumns = computed(() => [
       ),
   },
   {
+    title: "网络失败",
+    key: "networkFailCount",
+    width: 90,
+    align: "center",
+    render: (row) =>
+      h(
+        "span",
+        { style: { color: "#8c8c8c", fontWeight: 600 } },
+        row.networkFailCount || 0,
+      ),
+  },
+  {
     title: "胜率",
     key: "winRate",
     width: 80,
@@ -1152,17 +1171,28 @@ const doFightOnce = async (tokenId, member) => {
           await new Promise((resolve) => setTimeout(resolve, 500));
           continue;
         }
-        return { success: false, isWin: false, leftCount: 0, rightCount: 0 };
+        return {
+          success: false,
+          isWin: false,
+          leftCount: 0,
+          rightCount: 0,
+          leftAlive: 0,
+          rightAlive: 0,
+        };
       }
 
       let leftCount = 0;
+      let leftAlive = 0;
       result.battleData.result.sponsor.teamInfo.forEach((item) => {
         if (item.hp == 0) leftCount++;
+        else leftAlive++;
       });
 
       let rightCount = 0;
+      let rightAlive = 0;
       result.battleData.result.accept.teamInfo.forEach((item) => {
         if (item.hp == 0) rightCount++;
+        else rightAlive++;
       });
 
       return {
@@ -1170,6 +1200,8 @@ const doFightOnce = async (tokenId, member) => {
         isWin: result.battleData.result.isWin,
         leftCount,
         rightCount,
+        leftAlive,
+        rightAlive,
       };
     } catch (error) {
       if (attempt < maxRetries) {
@@ -1181,10 +1213,24 @@ const doFightOnce = async (tokenId, member) => {
         `切磋 ${member.name} 失败（已重试${maxRetries}次）:`,
         error,
       );
-      return { success: false, isWin: false, leftCount: 0, rightCount: 0 };
+      return {
+        success: false,
+        isWin: false,
+        leftCount: 0,
+        rightCount: 0,
+        leftAlive: 0,
+        rightAlive: 0,
+      };
     }
   }
-  return { success: false, isWin: false, leftCount: 0, rightCount: 0 };
+  return {
+    success: false,
+    isWin: false,
+    leftCount: 0,
+    rightCount: 0,
+    leftAlive: 0,
+    rightAlive: 0,
+  };
 };
 
 // 与单个成员切磋 fightNum 次
@@ -1192,6 +1238,7 @@ const fightOneMember = async (tokenId, member) => {
   let winCount = 0;
   let drawCount = 0;
   let lossCount = 0;
+  let networkFailCount = 0;
   let ourFullTeamCount = 0;
   let enemyFullTeamCount = 0;
 
@@ -1203,19 +1250,22 @@ const fightOneMember = async (tokenId, member) => {
     if (result.success) {
       if (result.leftCount === 0) ourFullTeamCount++;
       if (result.rightCount === 0) enemyFullTeamCount++;
-      if (result.isWin) {
+      // 平局：双方场上均有未阵亡的咸将
+      if (result.leftAlive > 0 && result.rightAlive > 0) {
+        drawCount++;
+      } else if (result.isWin) {
         winCount++;
       } else {
         lossCount++;
       }
     } else {
-      lossCount++;
+      // 网络异常/重试耗尽不计入负场，单独统计
+      networkFailCount++;
     }
 
-    // 相邻两次切磋间隔 500-800 毫秒
+    // 相邻两次切磋固定间隔 2 秒，避免请求过于频繁被系统检测
     if (i < fightNum.value - 1 && !cancelFlag.value) {
-      const delay = 500 + Math.random() * 300;
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
 
@@ -1229,6 +1279,7 @@ const fightOneMember = async (tokenId, member) => {
     winCount,
     drawCount,
     lossCount,
+    networkFailCount,
     ourFullTeamCount,
     enemyFullTeamCount,
   };
@@ -1251,15 +1302,15 @@ const handleExport = () => {
     `俱乐部切磋结果 - ${clubNameStr}`,
     `每人切磋次数: ${fightNum.value}`,
     `完成人数: ${fightResultList.value.length}`,
-    `总胜: ${overallWin.value}  总平: ${overallDraw.value}  总负: ${overallLoss.value}  总胜率: ${overallWinRate.value}%`,
+    `总胜: ${overallWin.value}  总平: ${overallDraw.value}  总负: ${overallLoss.value}  网络失败: ${overallNetworkFail.value}  总胜率: ${overallWinRate.value}%`,
     "─".repeat(60),
-    "排名\t成员\tID\t战力\t红淬\t阵容\t胜\t平\t负\t胜率%\t我方满编率%\t敌方满编率%",
+    "排名\t成员\tID\t战力\t红淬\t阵容\t胜\t平\t负\t网络失败\t胜率%\t我方满编率%\t敌方满编率%",
   ];
   sortedResultList.value.forEach((r, idx) => {
     const total = r.winCount + r.drawCount + r.lossCount;
     const rate = total === 0 ? "0.00" : ((r.winCount / total) * 100).toFixed(2);
     lines.push(
-      `${idx + 1}\t${r.name}\t${r.roleId}\t${formatPower(r.power)}\t${r.redQuench}红\t${r.lineupType}\t${r.winCount}\t${r.drawCount}\t${r.lossCount}\t${rate}\t${total === 0 ? "0.0" : ((r.ourFullTeamCount / total) * 100).toFixed(1)}\t${total === 0 ? "0.0" : ((r.enemyFullTeamCount / total) * 100).toFixed(1)}`,
+      `${idx + 1}\t${r.name}\t${r.roleId}\t${formatPower(r.power)}\t${r.redQuench}红\t${r.lineupType}\t${r.winCount}\t${r.drawCount}\t${r.lossCount}\t${r.networkFailCount || 0}\t${rate}\t${total === 0 ? "0.0" : ((r.ourFullTeamCount / total) * 100).toFixed(1)}\t${total === 0 ? "0.0" : ((r.enemyFullTeamCount / total) * 100).toFixed(1)}`,
     );
   });
   const text = lines.join("\n");
@@ -1646,6 +1697,10 @@ const handleExportImage = async () => {
 
 .overall-summary .loss-count .summary-value {
   color: var(--error-color);
+}
+
+.overall-summary .fail-count .summary-value {
+  color: var(--text-secondary);
 }
 
 .overall-summary .win-rate .summary-value {
