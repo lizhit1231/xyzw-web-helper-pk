@@ -319,7 +319,7 @@
             striped
             :row-key="(row) => row.roleId"
             :flex-height="!exporting"
-            :scroll-x="900"
+            :scroll-x="1500"
             :style="exporting ? {} : { height: '500px' }"
           />
         </div>
@@ -341,7 +341,7 @@
             striped
             :row-key="(row) => row.roleId"
             flex-height
-            :scroll-x="500"
+            :scroll-x="1300"
             style="height: 400px"
           />
         </div>
@@ -882,9 +882,9 @@ const renderPet = (row) => {
 };
 
 const memberInfoColumns = [
-  { title: "珍卡", key: "legacy", width: 92, align: "center", render: renderLegacy },
-  { title: "玩具", key: "toyName", width: 120, align: "center", render: renderToy },
-  { title: "宠物", key: "pet", width: 110, align: "center", render: renderPet },
+  { title: "珍卡", key: "legacy", width: 80, align: "center", render: renderLegacy },
+  { title: "玩具", key: "toyName", width: 100, align: "center", render: renderToy },
+  { title: "宠物", key: "pet", width: 95, align: "center", render: renderPet },
 ];
 
 // 成员表格列
@@ -931,7 +931,7 @@ const memberColumns = computed(() => [
             row.name?.charAt(0) || "?",
           ),
   },
-  { title: "成员", key: "name", minWidth: 120, align: "left" },
+  { title: "成员", key: "name", minWidth: 100, align: "left" },
   {
     title: "ID",
     key: "roleId",
@@ -1030,7 +1030,7 @@ const resultColumns = computed(() => [
             row.name?.charAt(0) || "?",
           ),
   },
-  { title: "成员", key: "name", minWidth: 120, align: "left" },
+  { title: "成员", key: "name", minWidth: 100, align: "left" },
   {
     title: "ID",
     key: "roleId",
@@ -1093,7 +1093,7 @@ const resultColumns = computed(() => [
   {
     title: "胜",
     key: "winCount",
-    width: 70,
+    width: 64,
     align: "center",
     render: (row) =>
       h(
@@ -1105,7 +1105,7 @@ const resultColumns = computed(() => [
   {
     title: "平",
     key: "drawCount",
-    width: 70,
+    width: 64,
     align: "center",
     render: (row) =>
       h(
@@ -1117,7 +1117,7 @@ const resultColumns = computed(() => [
   {
     title: "负",
     key: "lossCount",
-    width: 70,
+    width: 64,
     align: "center",
     render: (row) =>
       h(
@@ -1129,7 +1129,7 @@ const resultColumns = computed(() => [
   {
     title: "网络失败",
     key: "networkFailCount",
-    width: 90,
+    width: 80,
     align: "center",
     render: (row) =>
       h(
@@ -1156,7 +1156,7 @@ const resultColumns = computed(() => [
   {
     title: "我方满编率",
     key: "ourFullTeamRate",
-    width: 100,
+    width: 90,
     align: "center",
     render: (row) => {
       const total = row.winCount + row.drawCount + row.lossCount;
@@ -1171,7 +1171,7 @@ const resultColumns = computed(() => [
   {
     title: "敌方满编率",
     key: "enemyFullTeamRate",
-    width: 100,
+    width: 90,
     align: "center",
     render: (row) => {
       const total = row.winCount + row.drawCount + row.lossCount;
