@@ -319,7 +319,7 @@
             striped
             :row-key="(row) => row.roleId"
             :flex-height="!exporting"
-            :scroll-x="1500"
+            :scroll-x="resultTableScrollX"
             :style="exporting ? {} : { height: '500px' }"
           />
         </div>
@@ -341,7 +341,7 @@
             striped
             :row-key="(row) => row.roleId"
             flex-height
-            :scroll-x="1300"
+            :scroll-x="memberTableScrollX"
             style="height: 400px"
           />
         </div>
@@ -931,17 +931,17 @@ const memberColumns = computed(() => [
             row.name?.charAt(0) || "?",
           ),
   },
-  { title: "成员", key: "name", minWidth: 100, align: "left" },
+  { title: "成员", key: "name", width: 110, align: "left", ellipsis: { tooltip: true } },
   {
     title: "ID",
     key: "roleId",
-    width: 120,
+    width: 110,
     align: "center",
   },
   {
     title: "战力",
     key: "power",
-    width: 100,
+    width: 85,
     align: "center",
     render: (row) => formatPower(row.power),
   },
@@ -1030,17 +1030,17 @@ const resultColumns = computed(() => [
             row.name?.charAt(0) || "?",
           ),
   },
-  { title: "成员", key: "name", minWidth: 100, align: "left" },
+  { title: "成员", key: "name", width: 110, align: "left", ellipsis: { tooltip: true } },
   {
     title: "ID",
     key: "roleId",
-    width: 110,
+    width: 105,
     align: "center",
   },
   {
     title: "战力",
     key: "power",
-    width: 90,
+    width: 85,
     align: "center",
     render: (row) => formatPower(row.power),
   },
@@ -1184,6 +1184,12 @@ const resultColumns = computed(() => [
     },
   },
 ]);
+
+// scroll-x 精确按列宽总和计算，避免右侧多余空白
+const sumWidth = (cols) =>
+  cols.reduce((s, c) => s + (c.width || c.minWidth || 0), 0);
+const memberTableScrollX = computed(() => sumWidth(memberColumns.value) + 16);
+const resultTableScrollX = computed(() => sumWidth(resultColumns.value) + 16);
 
 // 开始俱乐部切磋
 const startClubFight = async () => {
